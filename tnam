@@ -34,6 +34,7 @@ def init():
     mark('Function in development.')
     os.system(f'mkdir {PATH}/temp')
     os.system(f'mkdir {PATH}/usr')
+    os.system(f'touch {PATH}/usr/installed.yaml')
 
 
 def update(dev=False):
@@ -41,13 +42,18 @@ def update(dev=False):
         mark('Function in development.')
 
 
-def readYaml(path):
+def readYaml(path) -> dict:
 
     with open(f'{path}', 'r') as f:
         data = yaml.safe_load(f)
         f.close()
 
     return data
+
+
+def unzip(file, path):
+    os.system(f'unzip -q -f -d {path} {file}')
+    print(f'Unpacking …{file}')
 
 
 def clearTemp():
@@ -62,17 +68,17 @@ def resourcesList() -> list:
 
     deb_sources = readYaml(f'{PATH}/src/sources.yaml')
 
-    return deb_sources
+    return deb_sources['deb']
 
 
 def filesList(package, resource) -> list:
     
-    with open(f'{PATH}/temp/bins.yaml', 'wb') as bin:
+    with open(f'{PATH}/temp/files.yaml', 'wb') as bin:
 
-        bin.write(x := rq.get(f'https://raw.githubusercontent.com/{resource}/bins.yaml').content)
+        bin.write(x := rq.get(f'https://raw.githubusercontent.com/{resource}/files.yaml').content)
         bin.close()
     
-    files = readYaml(f'{PATH}/temp/bins.yaml')
+    files = readYaml(f'{PATH}/temp/files.yaml')
     
     clearTemp()
 
@@ -89,10 +95,14 @@ def install(package):
         err("This package doesn't exist.")
         return
 
-    ur.urlretrieve(f'https://raw.githubusercontent.com/{resource}/bins/{fileList[0]}', f'{PATH}/temp/{fileList[0]}')
+    ur.urlretrieve(f'https://raw.githubusercontent.com/{resource}/{fileList[0]}', f'{PATH}/temp/{fileList[0]}')
+    unzip(f'{PATH}/temp/{fileList[0]}', f'{PATH}/temp/')
     
-    os.system(f'dpkg -i {PATH}/temp/{package}_amd64.deb')
+    for f in os.listdir(f'{PATH}/temp'):
+        if f.endswith('.deb'): os.system(f'dpkg -i {PATH}/temp/{f}')
+
     clearTemp()
+    print(f'{package} successfully installed.')
 
 def isSudo():
     if os.geteuid() != 0:
@@ -101,8 +111,7 @@ def isSudo():
     return True
 
 def main():
-    argv = sys.argv[1:2]
-    params = sys.argv[3:]
+    argv = sys.argv[1:]
 
     if not argv: 
         print('The needed app manager.')
@@ -122,7 +131,7 @@ def main():
                 remove(argv[1])
         case 'update':
             if isSudo():
-                update('-d' in params)
+                update()
         case _:
             print("Wrong command. Type 'tnam help' for help")
 
