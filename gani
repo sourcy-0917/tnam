@@ -1,0 +1,132 @@
+#!/bin/python3
+import requests as rq
+import urllib.request as ur
+import sys
+import yaml
+import os
+from src.colors import *
+
+PATH = "/gani"
+
+_help = \
+"""
+Syntax: gani [command] [package] [*args]
+
+Commands:
+install - install a package
+remove - remove a package
+help - this text
+
+Arguments:
+-d | --dev - gets access to developer functions
+"""
+
+
+def err(*text):
+    print(Text.RED + Styles.BOLD + 'Error: ', Styles.RESET, *text, sep='')
+
+
+def mark(*text):
+    print(Text.YELLOW + Styles.BOLD + 'Mark: ', Styles.RESET, *text, sep='')
+
+
+def init(dev=False):
+    if not dev:
+        mark('Function in development.')
+
+
+def update(dev=False):
+    if not dev:
+        mark('Function in development.')
+
+
+def readYaml(path):
+
+    with open(f'{path}', 'r') as f:
+        data = yaml.safe_load(f)
+        f.close()
+
+    return data
+
+
+def clearTemp():
+    os.system(f'rm -rf {PATH}/temp/*')
+
+
+def remove(package):
+    os.system(f'dpkg -r {package}')
+
+
+def resourcesList() -> list:
+
+    with open(f'{PATH}/src/sources.yaml') as sources:
+        deb_sources = yaml.safe_load(sources)
+        sources.close()
+
+    return deb_sources
+
+
+def filesList(package, resource) -> list:
+    
+    with open(f'{PATH}/temp/bins.yaml', 'wb') as bin:
+
+        bin.write(x := rq.get(f'https://raw.githubusercontent.com/{resource}/bins.yaml').content)
+        bin.close()
+    
+    files = readYaml(f'{PATH}/temp/bins.yaml')
+    
+    clearTemp()
+
+    return files[package]['files']
+
+
+def install(package):
+
+    resource = resourcesList()['deb'][0]
+
+    try:
+        fileList = filesList(package, resource)
+    except KeyError:
+        err("This package doesn't exist.")
+        return
+
+    ur.urlretrieve(f'https://raw.githubusercontent.com/{resource}/bins/{fileList[0]}', f'{PATH}/temp/{fileList[0]}')
+    
+    os.system(f'dpkg -i {PATH}/temp/{package}_amd64.deb')
+    clearTemp()
+
+def isSudo():
+    if os.geteuid() != 0:
+        err('Not a sudo user.')
+        return False
+    return True
+
+def main():
+    argv = sys.argv[1:2]
+    params = sys.argv[3:]
+
+    if not argv: 
+        print('The needed app manager.')
+        mark('Type "gani help" for help.')
+        return
+    
+    match argv[0]:
+        case 'init':
+            init('-d' in params)
+        case 'install':
+            if isSudo():
+                install(argv[1])
+        case 'help':
+            print(_help)
+        case 'remove':
+            if isSudo():
+                remove(argv[1])
+        case 'update':
+            if isSudo():
+                update('-d' in params)
+        case _:
+            print("Wrong command. Type 'gani help' for help")
+
+
+if __name__ == '__main__':
+    main()
