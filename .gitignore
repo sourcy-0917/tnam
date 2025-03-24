@@ -1,4 +1,6 @@
 *.deb
+temp
 usr
 *pycache*
 *.code-workspace
+DEBIAN

@@ -6,11 +6,11 @@ import yaml
 import os
 from src.colors import *
 
-PATH = "/gani"
+PATH = "/tnam"
 
 _help = \
 """
-Syntax: gani [command] [package] [*args]
+Syntax: tnam [command] [package] [*args]
 
 Commands:
 install - install a package
@@ -30,9 +30,10 @@ def mark(*text):
     print(Text.YELLOW + Styles.BOLD + 'Mark: ', Styles.RESET, *text, sep='')
 
 
-def init(dev=False):
-    if not dev:
-        mark('Function in development.')
+def init():
+    mark('Function in development.')
+    os.system(f'mkdir {PATH}/temp')
+    os.system(f'mkdir {PATH}/usr')
 
 
 def update(dev=False):
@@ -59,9 +60,7 @@ def remove(package):
 
 def resourcesList() -> list:
 
-    with open(f'{PATH}/src/sources.yaml') as sources:
-        deb_sources = yaml.safe_load(sources)
-        sources.close()
+    deb_sources = readYaml(f'{PATH}/src/sources.yaml')
 
     return deb_sources
 
@@ -82,7 +81,7 @@ def filesList(package, resource) -> list:
 
 def install(package):
 
-    resource = resourcesList()['deb'][0]
+    resource = resourcesList()[0]
 
     try:
         fileList = filesList(package, resource)
@@ -107,12 +106,12 @@ def main():
 
     if not argv: 
         print('The needed app manager.')
-        mark('Type "gani help" for help.')
+        mark('Type "tham help" for help.')
         return
     
     match argv[0]:
         case 'init':
-            init('-d' in params)
+            init()
         case 'install':
             if isSudo():
                 install(argv[1])
@@ -125,7 +124,7 @@ def main():
             if isSudo():
                 update('-d' in params)
         case _:
-            print("Wrong command. Type 'gani help' for help")
+            print("Wrong command. Type 'tnam help' for help")
 
 
 if __name__ == '__main__':
