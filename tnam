@@ -6,21 +6,13 @@ import yaml
 import os
 from src.colors import *
 
+locale : dict = {}
 PATH = "/tnam"
 
-_help = \
-"""
-Syntax: tnam [command] [package] [*args]
-
-Commands:
-install - install a package
-remove - remove a package
-help - this text
-
-Arguments:
--d | --dev - gets access to developer functions
-"""
-
+def loadLocales():
+    global locale
+    lang = os.environ['LANG'][:5]
+    locale = readYaml(f'{PATH}/src/locales/{lang}.yaml')
 
 def err(*text):
     print(Text.RED + Styles.BOLD + 'Error: ', Styles.RESET, *text, sep='')
@@ -31,15 +23,14 @@ def mark(*text):
 
 
 def init():
-    mark('Function in development.')
+    mark(locale['dev'])
     os.system(f'mkdir {PATH}/temp')
     os.system(f'mkdir {PATH}/usr')
     os.system(f'touch {PATH}/usr/installed.yaml')
 
 
-def update(dev=False):
-    if not dev:
-        mark('Function in development.')
+def update():
+    mark(locale['dev'])
 
 
 def readYaml(path) -> dict:
@@ -51,9 +42,15 @@ def readYaml(path) -> dict:
     return data
 
 
-def unzip(file, path):
-    os.system(f'unzip -q -f -d {path} {file}')
-    print(f'Unpacking …{file}')
+def writeYaml(file, text):
+    with open(file, 'r+') as y:
+        cont = y.read()
+        y.write(f'{cont}\n{text}')
+
+
+def unzip(file : str, path):
+    os.system(f'unzip -q -d {path} {file}')
+    print(f'{locale['unzip']}/{file[-file[::-1].find('/'):]}')
 
 
 def clearTemp():
@@ -71,7 +68,12 @@ def resourcesList() -> list:
     return deb_sources['deb']
 
 
-def filesList(package, resource) -> list:
+def unite(package):
+    ls = os.listdir(f'{PATH}/temp/{package}')
+    os.system(f'cat {[ls[i] + ' ' for i in range(len(ls)-1)]} {ls[-1]} > {package}.zip')
+
+
+def filesList(resource) -> list:
     
     with open(f'{PATH}/temp/files.yaml', 'wb') as bin:
 
@@ -82,40 +84,48 @@ def filesList(package, resource) -> list:
     
     clearTemp()
 
-    return files[package]['files']
+    return files
 
 
 def install(package):
 
+
     resource = resourcesList()[0]
-
+    os.system(f'mkdir {PATH}/temp/{package}')
     try:
-        fileList = filesList(package, resource)
-    except KeyError:
-        err("This package doesn't exist.")
-        return
+        ur.urlretrieve(f'https://raw.githubusercontent.com/{resource}/{package}/{package}.zip', f'{PATH}/temp/{package}/{package}.zip')
+    except:
+        pass
 
-    ur.urlretrieve(f'https://raw.githubusercontent.com/{resource}/{fileList[0]}', f'{PATH}/temp/{fileList[0]}')
-    unzip(f'{PATH}/temp/{fileList[0]}', f'{PATH}/temp/')
+    for i in range(1, 10):
+        try:
+            ur.urlretrieve(f'https://raw.githubusercontent.com/{resource}/{package}/{package}.z0{i}', f'{PATH}/temp/{package}/{package}.z0{i}')
+        except:
+            break
     
-    for f in os.listdir(f'{PATH}/temp'):
-        if f.endswith('.deb'): os.system(f'dpkg -i {PATH}/temp/{f}')
+    unite()
+    
+    unzip(f'{PATH}/temp/{package}.zip', f'{PATH}/temp/')
 
+    os.system(f'dpkg -i {PATH}/temp/{package}.deb')
+    print(f'{package} {locale['successInst']}')
+    
     clearTemp()
-    print(f'{package} successfully installed.')
+
 
 def isSudo():
     if os.geteuid() != 0:
-        err('Not a sudo user.')
+        err(locale['notSudo'])
         return False
     return True
 
 def main():
+    loadLocales()
     argv = sys.argv[1:]
 
     if not argv: 
-        print('The needed app manager.')
-        mark('Type "tham help" for help.')
+        print(locale['intro'])
+        mark(locale['help'])
         return
     
     match argv[0]:
@@ -125,7 +135,8 @@ def main():
             if isSudo():
                 install(argv[1])
         case 'help':
-            print(_help)
+            for l in locale['_help']:
+                print(l)
         case 'remove':
             if isSudo():
                 remove(argv[1])
@@ -133,7 +144,7 @@ def main():
             if isSudo():
                 update()
         case _:
-            print("Wrong command. Type 'tnam help' for help")
+            print(f'{locale['wrongCommand']} {locale['help']}')
 
 
 if __name__ == '__main__':

@@ -1,0 +1,19 @@
+# Russian localization
+
+dev: В разработке.
+unzip: Распаковка …
+successInst: успешно установлено.
+notSudo: Запущено не под sudo.
+help: Введите "tnam help" для получения информации.
+_help:
+ - Синтаксис - tnam [команда] [пакет] [аргументы]
+ - -----
+ - Команды
+ - install - установить пакет
+ - remove - удалить пакет
+ - help - вывести этот текст
+ - -----
+ - Аргументы
+ - (пока нету)
+intro: The needed file manager.
+wrongCommand: Неправильная команда.
