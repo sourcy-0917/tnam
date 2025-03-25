@@ -3,6 +3,7 @@
 dev: В разработке.
 unzip: Распаковка …
 successInst: успешно установлено.
+packageDntExist: Этот пакет не существует.
 notSudo: Запущено не под sudo.
 help: Введите "tnam help" для получения информации.
 _help:
@@ -15,5 +16,9 @@ _help:
  - -----
  - Аргументы
  - (пока нету)
-intro: The needed file manager.
+intro: The Needed App Manager.
 wrongCommand: Неправильная команда.
+err: "Ошибка: "
+mark: "Заметка: "
+packageEmpty: "Имя пакета не может быть пустым."
+packageNotInst: "Этот пакет не установлен."

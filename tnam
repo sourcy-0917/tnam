@@ -9,10 +9,12 @@ from src.colors import *
 locale : dict = {}
 PATH = "/tnam"
 
+
 def loadLocales():
     global locale
     lang = os.environ['LANG'][:5]
     locale = readYaml(f'{PATH}/src/locales/{lang}.yaml')
+
 
 def err(*text):
     print(Text.RED + Styles.BOLD + 'Error: ', Styles.RESET, *text, sep='')
@@ -24,9 +26,13 @@ def mark(*text):
 
 def init():
     mark(locale['dev'])
-    os.system(f'mkdir {PATH}/temp')
-    os.system(f'mkdir {PATH}/usr')
-    os.system(f'touch {PATH}/usr/installed.yaml')
+    try:
+        os.system(f'mkdir {PATH}/temp')
+        os.system(f'mkdir {PATH}/usr')
+        os.system(f'touch {PATH}/usr/installed.yaml')
+        writeYaml(f'{PATH}/usr/installed.yaml', {'python3-pip': 25.0})
+    except FileExistsError as f:
+        err(f'{f.filename} exists.')
 
 
 def update():
@@ -36,19 +42,19 @@ def update():
 def readYaml(path) -> dict:
 
     with open(f'{path}', 'r') as f:
-        data = yaml.safe_load(f)
+        data = yaml.load(f, yaml.Loader)
         f.close()
 
     return data
 
 
-def writeYaml(file, text):
-    with open(file, 'r+') as y:
-        cont = y.read()
-        y.write(f'{cont}\n{text}')
+def writeYaml(file, arr : dict):
+    with open(file, 'w') as y:
+        text = yaml.dump(arr)
+        y.write(text)
 
 
-def unzip(file : str, path):
+def unzip(file, path):
     os.system(f'unzip -q -d {path} {file}')
     print(f'{locale['unzip']}/{file[-file[::-1].find('/'):]}')
 
@@ -58,7 +64,26 @@ def clearTemp():
 
 
 def remove(package):
-    os.system(f'dpkg -r {package}')
+    
+    try:
+
+        x = readYaml(f'{PATH}/usr/installed.yaml')
+        content : dict = x
+        content.pop(package)
+        
+        writeYaml(f'{PATH}/usr/installed.yaml', content)
+
+        os.system(f'dpkg --refuse-all -r {package}')
+
+    except KeyError:
+        err(locale['packageNotInst'])
+        return
+
+
+def installedList() -> dict:
+
+    ls = readYaml(f'{PATH}/usr/installed.yaml')
+    return ls
 
 
 def resourcesList() -> list:
@@ -69,11 +94,14 @@ def resourcesList() -> list:
 
 
 def unite(package):
+
     ls = os.listdir(f'{PATH}/temp/{package}')
-    os.system(f'cat {[ls[i] + ' ' for i in range(len(ls)-1)]} {ls[-1]} > {package}.zip')
+    e = lambda x: f'{PATH}/temp/{package}/' + x
+
+    os.system(f'cat {' '.join(list(map(e, ls)))} > {package}.zip')
 
 
-def filesList(resource) -> list:
+def filesList(resource) -> dict:
     
     with open(f'{PATH}/temp/files.yaml', 'wb') as bin:
 
@@ -82,15 +110,27 @@ def filesList(resource) -> list:
     
     files = readYaml(f'{PATH}/temp/files.yaml')
     
-    clearTemp()
+    os.system(f'rm -rf {PATH}/temp/files.yaml')
 
     return files
 
 
+def _install(file):
+    try:
+        if os.system(f'dpkg -i {file}') == 0:
+            print(f'{file[-file[::-1].find('/'):]} {locale['successInst']}')
+            return 0
+    except:
+        return 1
+
+
 def install(package):
 
-
     resource = resourcesList()[0]
+    if not package in list(filesList(resource).keys()):
+        err(locale['packageDntExist'])
+        return
+
     os.system(f'mkdir {PATH}/temp/{package}')
     try:
         ur.urlretrieve(f'https://raw.githubusercontent.com/{resource}/{package}/{package}.zip', f'{PATH}/temp/{package}/{package}.zip')
@@ -103,13 +143,21 @@ def install(package):
         except:
             break
     
-    unite()
+    for f in os.listdir(f'{PATH}/temp/{package}'): 
+        if f.endswith('.zip'):
+            break
+    else:
+        unite(package)
     
-    unzip(f'{PATH}/temp/{package}.zip', f'{PATH}/temp/')
+    unzip(f'{PATH}/temp/{package}/{package}.zip', f'{PATH}/temp/{package}')
 
-    os.system(f'dpkg -i {PATH}/temp/{package}.deb')
-    print(f'{package} {locale['successInst']}')
+    x = readYaml(f'{PATH}/usr/installed.yaml')
+    content : dict = x
+    content[package] = filesList(resource)[package]
+    writeYaml(f'{PATH}/usr/installed.yaml', content)
     
+    _install(f'{PATH}/temp/{package}/{package}.deb')
+
     clearTemp()
 
 
@@ -120,6 +168,7 @@ def isSudo():
     return True
 
 def main():
+
     loadLocales()
     argv = sys.argv[1:]
 
@@ -129,20 +178,32 @@ def main():
         return
     
     match argv[0]:
+
         case 'init':
             init()
+
         case 'install':
             if isSudo():
-                install(argv[1])
+                if argv[1]:
+                    install(argv[1])
+                else:
+                    err(locale['packageEmpty'])
+
         case 'help':
             for l in locale['_help']:
                 print(l)
+
         case 'remove':
             if isSudo():
-                remove(argv[1])
+                if argv[1]:
+                    remove(argv[1])
+                else:
+                    err(locale['packageEmpty'])
+
         case 'update':
             if isSudo():
                 update()
+
         case _:
             print(f'{locale['wrongCommand']} {locale['help']}')
 
