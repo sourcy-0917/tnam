@@ -68,6 +68,8 @@ def remove(package):
     try:
 
         x = readYaml(f'{PATH}/usr/installed.yaml')
+        if not package in list(x.keys()):
+            raise Exception
         content : dict = x
         content.pop(package)
         
@@ -75,7 +77,7 @@ def remove(package):
 
         os.system(f'dpkg --refuse-all -r {package}')
 
-    except KeyError:
+    except:
         err(locale['packageNotInst'])
         return
 
